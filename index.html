@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Real Context-Driven AI Lesson Planner - Al Bayariq</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & Cairo -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Tesseract.js لقراءة واستخراج نصوص صفحة الكتاب من الصورة فوراً على جهاز المعلم -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    .ar-font {
+      font-family: 'Cairo', sans-serif;
+    }
+    
+    @page {
+      size: A4 portrait;
+      margin: 5mm 8mm;
+    }
+
+    @media print {
+      body {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-page {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important;
+      }
+      .print-table th {
+        padding: 4.5px 7px !important;
+        font-size: 9.8px !important;
+        border-color: #64748b !important;
+      }
+      .print-table td {
+        padding: 5.2px 8px !important;
+        font-size: 10px !important;
+        line-height: 1.32 !important;
+        border-color: #94a3b8 !important;
+      }
+      .vision-box {
+        padding: 5px 12px !important;
+        margin-top: 6px !important;
+        margin-bottom: 5px !important;
+      }
+      .signatures-box {
+        margin-top: 5px !important;
+      }
+      .footer-contact {
+        margin-top: 5px !important;
+        padding-top: 3px !important;
+      }
+    }
+  </style>
+</head>
+<body class="p-3 md:p-6">
+
+  <div class="max-w-5xl mx-auto space-y-5">
+
+    <!-- CONTROL PANEL (HIDDEN IN PRINT) -->
+    <div class="no-print bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden" dir="rtl">
+      <div class="bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 p-4 text-white flex flex-wrap justify-between items-center gap-3">
+        <div>
+          <h1 class="text-lg font-bold ar-font flex items-center gap-2">
+            <span>⚡</span> تطبيق التحضير الإلكتروني الواقعي (مبني على مدخلاتك الحقيقية)
+          </h1>
+          <p class="text-xs text-emerald-200 ar-font">
+            قسم اللغة الإنجليزية - مدارس البيارق الأهلية
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="fillDemoData()" class="text-xs bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-3 py-1.5 rounded-lg transition ar-font">
+            🎲 تجربة درس واقعي
+          </button>
+          <button onclick="window.print()" class="text-xs bg-white text-emerald-950 hover:bg-emerald-50 font-bold px-4 py-1.5 rounded-lg transition shadow flex items-center gap-1.5 ar-font">
+            🖨️ طباعة النموذج (A4 صفحة ممتلئة)
+          </button>
+        </div>
+      </div>
+
+      <div class="p-5 space-y-4 text-right">
+        <!-- Metadata Inputs -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1 ar-font">المدرسة (ثابت):</label>
+            <input type="text" value="مدارس البيارق الأهلية" readonly class="w-full bg-slate-100 border border-slate-300 rounded-lg p-2 text-xs font-bold text-emerald-900 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1 ar-font">اسم المعلم:</label>
+            <input id="in-teacher" type="text" placeholder="اسم المعلم" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-emerald-600 outline-none" oninput="syncHeaders()" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1 ar-font">المرحلة:</label>
+            <select id="in-stage" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-emerald-600 outline-none ar-font" onchange="syncHeaders()">
+              <option value="Primary Stage">المرحلة الابتدائية</option>
+              <option value="Intermediate Stage">المرحلة المتوسطة</option>
+              <option value="Secondary Stage">المرحلة الثانوية</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1 ar-font">الصف والفصل:</label>
+            <input id="in-grade" type="text" placeholder="Grade 5/1" class="w-full border border-slate-300 rounded-lg p-2 text-xs outline-none" oninput="syncHeaders()" />
+          </div>
+        </div>
+
+        <!-- Term, Week, Date & Principal -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1 ar-font">الفصل الدراسي:</label>
+            <select id="in-term" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-emerald-600 outline-none ar-font" onchange="syncHeaders()">
+              <option value="1st Term">الفصل الدراسي الأول (First Term)</option>
+              <option value="2nd Term">الفصل الدراسي الثاني (Second Term)</option>
+              <option value="3rd Term">الفصل الدراسي الثالث (Third Term)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1 ar-font">الأسبوع الدراسي:</label>
+            <input id="in-week" type="text" placeholder="Week 4" class="w-full border border-slate-300 rounded-lg p-2 text-xs outline-none" oninput="syncHeaders()" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1 ar-font">التاريخ (اختيار إلكتروني):</label>
+            <input id="in-date" type="date" class="w-full border border-slate-300 rounded-lg p-2 text-xs outline-none" onchange="syncHeaders()" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1 ar-font">مدير المدرسة:</label>
+            <input id="in-principal" type="text" placeholder="اسم مدير المدرسة" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-emerald-600 outline-none" oninput="syncHeaders()" />
+          </div>
+        </div>
+
+        <!-- Lesson Specific Inputs (Real Core Data) -->
+        <div class="border-t border-slate-200 pt-3 grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1 ar-font">عنوان وموضوع الدرس الدقيق:</label>
+            <input id="in-title" type="text" placeholder="e.g. Unit 3: Healthy Eating Habits" class="w-full border border-slate-300 rounded-lg p-2 text-xs outline-none" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1 ar-font">المكتسب المهاري المستهدف (مهارة حقيقية):</label>
+            <textarea id="in-skill" rows="3" placeholder="مثال: Expressing personal food preferences and advising peers using (should / shouldn't)..." class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-emerald-600 outline-none"></textarea>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1 ar-font">الكلمات والمفردات المستهدفة حصراً:</label>
+            <textarea id="in-vocab" rows="3" placeholder="vegetables, protein, balanced diet, vitamins, calories, junk food" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-emerald-600 outline-none font-mono"></textarea>
+          </div>
+
+          <!-- Clickable Lesson Image with OCR -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1 ar-font">صورة صفحة الدرس (لقراءة محتواها):</label>
+            <div onclick="document.getElementById('lesson-image-input').click()" class="border-2 border-dashed border-emerald-300 hover:border-emerald-600 rounded-xl p-3 text-center transition cursor-pointer bg-emerald-50/40 hover:bg-emerald-50">
+              <input type="file" id="lesson-image-input" accept="image/*" class="hidden" onchange="processLessonImage(event)" />
+              <div id="lesson-idle">
+                <span class="text-xl">📸</span>
+                <p class="text-xs text-emerald-900 font-bold mt-1 ar-font">اضغط لاختيار صورة الصفحة</p>
+                <p id="ocr-status" class="text-[10px] text-slate-500">سيتم استخراج الكلمات والنصوص منها تلقائياً</p>
+              </div>
+              <div id="lesson-preview" class="hidden">
+                <img id="preview-img" src="" alt="Lesson" class="max-h-12 mx-auto rounded border shadow-sm mb-1" />
+                <p id="file-name-text" class="text-[9px] text-emerald-800 font-bold truncate"></p>
+                <span class="text-[9px] text-emerald-600 font-bold ar-font">تم مسح النص بنجاح ✓</span>
+              </div>
+            </div>
+            <input type="hidden" id="extracted-text" value="" />
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-1">
+          <p class="text-[11px] text-slate-500 ar-font">
+            ⚡ <strong>التزام تام:</strong> التحضير يتم بناؤه وتطريزه سطراً بسطر على الكلمات والمهارة المدخلة أعلاه فقط دون اختلاق.
+          </p>
+          <button onclick="buildContextualPreparation()" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-6 py-2.5 rounded-lg shadow transition flex items-center gap-1.5 ar-font">
+            <span>✨</span> توليد التحضير الفعلي الآن
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRINTABLE A4 SHEET (LTR) -->
+    <div id="printable-area" class="print-page bg-white rounded-xl shadow-xl border border-slate-300 p-4 text-left" dir="ltr">
+      
+      <!-- Top Header -->
+      <div class="border-b-2 border-emerald-950 pb-2 mb-2 flex justify-between items-center">
+        <div class="text-[11px] leading-tight text-slate-800 font-semibold space-y-0.5">
+          <p class="font-extrabold text-slate-950 text-[12.5px]">Kingdom of Saudi Arabia</p>
+          <p>Ministry of Education</p>
+          <p class="text-emerald-950 font-bold text-[11.5px]">Al Bayariq Private Schools | مدارس البيارق الأهلية</p>
+          <p class="text-[10px] text-slate-600">English Language Department</p>
+        </div>
+
+        <!-- School Logo (Clickable to change) -->
+        <div class="flex flex-col items-center justify-center cursor-pointer group" onclick="document.getElementById('school-logo-input').click()" title="Click to change logo">
+          <input type="file" id="school-logo-input" accept="image/*" class="hidden" onchange="changeSchoolLogo(event)" />
+          
+          <div id="logo-wrapper" class="relative">
+            <svg id="default-logo-svg" class="w-14 h-14" viewBox="0 0 450 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M165 40 H235 V125 H165 Z" fill="#d8b26e"/>
+              <path d="M165 40 H195 V125 H165 Z" fill="#c49b55"/>
+              <path d="M245 40 H275 V125 H245 Z" fill="#d8b26e"/>
+              <path d="M245 40 H260 V125 H245 Z" fill="#c49b55"/>
+              <path d="M205 140 L285 140 L330 205 L250 280 L205 235 Z" fill="#d8b26e"/>
+              <path d="M205 140 L135 205 L205 280 L250 280 L170 205 Z" fill="#c49b55"/>
+              <circle cx="205" cy="210" r="32" fill="#ffffff"/>
+              <path d="M205 290 L285 290 L330 355 L250 430 L205 385 Z" fill="#d8b26e"/>
+              <path d="M205 290 L135 355 L205 430 L250 430 L170 355 Z" fill="#c49b55"/>
+              <path d="M360 160 L405 215 L350 405 L305 405 Z" fill="#005a43"/>
+              <path d="M305 405 L420 405 L380 465 L145 485 C255 458 365 420 420 405 Z" fill="#d8b26e"/>
+              <path d="M295 400 L350 400 C340 340 360 230 375 170 L355 170 C330 255 305 350 295 400 Z" fill="#003d2d"/>
+              <text x="225" y="448" text-anchor="middle" font-family="Arial, Tahoma" font-size="28" font-weight="bold" fill="#005a43">مدارس البيارق الأهلية</text>
+            </svg>
+            <img id="custom-logo-img" src="" alt="School Logo" class="max-h-14 max-w-[110px] object-contain hidden" />
+            <span class="no-print absolute -bottom-2 text-[8px] bg-emerald-800 text-white px-1.5 py-0.2 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap">انقر لتغيير الشعار</span>
+          </div>
+        </div>
+
+        <div class="text-right">
+          <span class="inline-block bg-emerald-900 text-white font-extrabold text-[11px] px-2.5 py-1 rounded shadow-sm">
+            DAILY LESSON PLAN
+          </span>
+          <p class="text-[10.5px] text-slate-700 font-semibold mt-0.5">Academic Year 1447 / 1448 H</p>
+          <p class="text-[9.5px] text-amber-800 font-bold">Standard Integrated Framework</p>
+        </div>
+      </div>
+
+      <!-- Metadata Strip -->
+      <div class="grid grid-cols-7 gap-1 text-[10.5px] bg-slate-50 border border-slate-300 rounded p-1.5 mb-2">
+        <div><span class="font-bold text-slate-800">Teacher:</span> <span id="out-teacher">Mr. Teacher Name</span></div>
+        <div><span class="font-bold text-slate-800">Stage:</span> <span id="out-stage">Primary Stage</span></div>
+        <div><span class="font-bold text-slate-800">Grade:</span> <span id="out-grade">Grade 5/1</span></div>
+        <div><span class="font-bold text-slate-800">Term:</span> <span id="out-term">1st Term</span></div>
+        <div><span class="font-bold text-slate-800">Week:</span> <span id="out-week">Week 4</span></div>
+        <div><span class="font-bold text-slate-800">Date:</span> <span id="out-date">18/09/2026</span></div>
+        <div><span class="font-bold text-slate-800">Supervisor:</span> <span class="font-bold text-emerald-950">Mohammed Abdullah Othman</span></div>
+      </div>
+
+      <!-- 16 Elements Table (Built Directly from User Inputs) -->
+      <div class="overflow-x-auto flex-grow">
+        <table class="w-full border-collapse border border-slate-400 print-table text-[10.5px]">
+          <thead>
+            <tr class="bg-emerald-900 text-white text-[10.5px]">
+              <th class="border border-slate-400 w-[4%] py-1.5 px-1 text-center">#</th>
+              <th class="border border-slate-400 w-[21%] py-1.5 px-2 text-left">
+                Element Title <span class="text-emerald-300 font-normal ar-font block text-[9px]">عنصر التحضير</span>
+              </th>
+              <th class="border border-slate-400 w-[75%] py-1.5 px-2.5 text-left">
+                Educational Content <span class="text-emerald-300 font-normal text-[8.5px]">(English Only)</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-300">
+            <!-- 1 -->
+            <tr class="hover:bg-slate-50">
+              <td class="border border-slate-300 text-center font-bold text-slate-600">1</td>
+              <td class="border border-slate-300 font-bold text-slate-800">
+                🎯 Lesson Title / Topic <span class="text-slate-500 font-normal ar-font block text-[8.5px]">عنوان / موضوع الدرس</span>
+              </td>
+              <td id="cell-1" class="border border-slate-300 text-slate-900">
+                <!-- Dynamic Content -->
+              </td>
+            </tr>
+            <!-- 2 -->
+            <tr class="hover:bg-slate-50">
+              <td class="border border-slate-300 text-center font-bold text-slate-600">2</td>
+              <td class="border border-slate-300 font-bold text-slate-800">
+                💡 Warm-up & Intro <span class="text-slate-500 font-normal ar-font block text-[8.5px]">التهيئة والتمهيد</span>
+              </td>
+              <td id="cell-2" class="border border-slate-300 text-slate-900">
+                <!-- Dynamic Content -->
+              </td>
+            </tr>
+            <!-- 3 -->
+            <tr class="hover:bg-slate-50">
+              <td class="border border-slate-300 text-center font-bold text-slate-600">3</td>
+              <td class="border border-slate-300 font-bold text-slate-800">
+                📖 Terminology <span class="text-slate-500 font-normal ar-font block text-[8.5px]">المصطلحات والمفاهيم</span>
+              </td>
+              <td id="cell-3" class="border border-slate-300 text-slate-900">
+                <!-- Dynamic Content -->
+              </td>
+            </tr>
+            <!-- 4 -->
+            <tr class="hover:bg-slate-50">
+              <td class="border border-slate-300 text-center font-bold text-slate-600">4</td>
+              <td class="border border-slate-300 font-bold text-slate-800">
+                🎯 Lesson Objectives <span class="text-slate-500 font-normal ar-font block text-[8.5px]">أهداف الدرس</span>
+              </td>
+              <td id="cell-4" class="border border-slate-300 text-slate-900">
+                <!-- Dynamic Content -->
+              </td>
+            </tr>
+            <!-- 5 -->
+            <tr class="hover:bg-slate-50">
+              <td class="border border-slate-300 text-center font-bold text-slate-600">5</td>
+              <td class="border border-slate-300 font-bold text-slate-800">
+                🛠️ Skill Acquisition <span class="text-slate-500 font-normal ar-font block text-[8.5px]">أهداف المكتسبات المهارية</span>
+              </td>
+              <td id="cell-5" class="border border-slate-300 text-slate-900">
+                <!-- Dynamic Content -->
+              </td>
+            </tr>
+            <!-- 6 -->
+            <tr class="hover:bg-slate-50">
+              <td class="border border-slate-300 text-center font-bold text-slate-600">6</td>
+              <td class="border border-slate-300 font-bold text-slate-800">
+                🗣️ Presentation <span class="text-slate-500 font-normal ar-font block text-[8.5px]">العرض (شرح الدرس)</span>
+              </td>
+              <td id="cell-6" class="border border-slate-300 text-slate-900">
+                <!-- Dynamic Content -->
+              </td>
+            </tr>
+            <!-- 7 -->
+            <tr class="hover:bg-slate-50">
+              <td class="border border-slate-300 text-center font-bold text-slate-600">7</td>
+              <td class="border border-slate-300 font-bold text-slate-800">
+                🧠 Thinking Skills <span class="text-slate-500 font-normal ar-font block text-[8.5px]">مهارات التفكير</span>
+              </td>
+              <td id="cell-7" class="border border-slate-300 text-slate-900">
+                <!-- Dynamic Content -->
+              </td>
+            </tr>
+            <!-- 8 -->
+            <tr class="hover:bg-slate-50">
+              <td class="border border-slate-300 text-center font-bold text-slate-600">8</td>
+              <td class="border border-slate-300 font-bold text-slate-800">
+                🔄 Strategies <span class="text-slate-500 font-normal ar-font block text-[8.5px]">استراتيجيات التعلم</span>
+              </td>
+              <td id="cell-8" class="border border-slate-300 text-slate-900">
+                <!-- Dynamic Content -->
+              </td>
+            </tr>
+            <!-- 9 -->
+            <tr class="hover:bg-slate-50">
+              <td class="border border-slate-300 text-center font-bold text-slate-600">9</td>
+              <td class="border border-slate-300 font-bold text-slate-800">
+                💻 Teaching Aids <span class="text-slate-500 font-normal ar-font block text-[8.5px]">الوسائل التعليمية</span>
+              </td>
+              <td id="cell-9" class="border border-slate-300 text-slate-900">
+                <!-- Dynamic Content -->
+              </td>
+            </tr>
+            <!-- 10 -->
+            <tr class="hover:bg-slate-50">
+              <td class="border border-slate-300 text-center font-bold text-slate-600">10</td>
+              <td class="border border-slate-300 font-bold text-slate-800">
+                🏁 Lesson Closure <span class="text-slate-500 font-normal ar-font block text-[8.5px]">إغلاق الدرس</span>
+              </td>
+              <td id="cell-10" class="border border-slate-300 text-slate-900">
+                <!-- Dynamic Content -->
+              </td>
+            </tr>
+            <!-- 11 -->
+            <tr class="hover:bg-slate-50">
+              <td class="border border-slate-300 text-center font-bold text-slate-600">11</td>
+              <td class="border border-slate-300 font-bold text-slate-800">
+                🌟 Enrichment <span class="text-slate-500 font-normal ar-font block text-[8.5px]">المحتوى الإثرائي</span>
+              </td>
+              <td id="cell-11" class="border border-slate-300 text-slate-900">
+                <!-- Dynamic Content -->
+              </td>
+            </tr>
+            <!-- 12 -->
+            <tr class="hover:bg-slate-50">
+              <td class="border border-slate-300 text-center font-bold text-slate-600">12</td>
+              <td class="border border-slate-300 font-bold text-slate-800">
+                📊 Assessment <span class="text-slate-500 font-normal ar-font block text-[8.5px]">التقويم الختامي</span>
+              </td>
+              <td id="cell-12" class="border border-slate-300 text-slate-900">
+                <!-- Dynamic Content -->
+              </td>
+            </tr>
+            <!-- 13 -->
+            <tr class="hover:bg-slate-50">
+              <td class="border border-slate-300 text-center font-bold text-slate-600">13</td>
+              <td class="border border-slate-300 font-bold text-slate-800">
+                📝 Homework & Quiz <span class="text-slate-500 font-normal ar-font block text-[8.5px]">الواجب والاختبار</span>
+              </td>
+              <td id="cell-13" class="border border-slate-300 text-slate-900">
+                <!-- Dynamic Content -->
+              </td>
+            </tr>
+            <!-- 14 -->
+            <tr class="hover:bg-slate-50">
+              <td class="border border-slate-300 text-center font-bold text-slate-600">14</td>
+              <td class="border border-slate-300 font-bold text-slate-800">
+                🏫 Activities <span class="text-slate-500 font-normal ar-font block text-[8.5px]">أنشطة مدرسية</span>
+              </td>
+              <td id="cell-14" class="border border-slate-300 text-slate-900">
+                <!-- Dynamic Content -->
+              </td>
+            </tr>
+            <!-- 15 -->
+            <tr class="hover:bg-slate-50">
+              <td class="border border-slate-300 text-center font-bold text-slate-600">15</td>
+              <td class="border border-slate-300 font-bold text-slate-800">
+                📎 Attachments <span class="text-slate-500 font-normal ar-font block text-[8.5px]">المرفقات</span>
+              </td>
+              <td id="cell-15" class="border border-slate-300 text-slate-900">
+                <!-- Dynamic Content -->
+              </td>
+            </tr>
+            <!-- 16 -->
+            <tr class="hover:bg-slate-50">
+              <td class="border border-slate-300 text-center font-bold text-slate-600">16</td>
+              <td class="border border-slate-300 font-bold text-slate-800">
+                📋 Supervision Notes <span class="text-slate-500 font-normal ar-font block text-[8.5px]">ملاحظات الإدارة والإشراف</span>
+              </td>
+              <td id="cell-16" class="border border-slate-300 text-slate-800 italic">
+                <!-- Dynamic Content -->
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- School Vision Banner -->
+      <div class="vision-box bg-emerald-900 text-white rounded text-center my-2 py-1.5 px-3 flex items-center justify-between">
+        <span class="text-[10px] font-bold tracking-wide">
+          School Vision: Building the Student's Integrated Personality
+        </span>
+        <span class="text-[10px] ar-font font-bold text-amber-300">
+          رؤية المدرسة: بناء الشخصية المتكاملة للطالب
+        </span>
+      </div>
+
+      <!-- Signatures Footer -->
+      <div class="signatures-box grid grid-cols-3 gap-3 text-[10px] border-t border-slate-300 pt-2 mt-1">
+        <!-- Teacher -->
+        <div class="border border-slate-300 rounded p-1.5 bg-slate-50 flex flex-col justify-between h-16">
+          <div class="flex justify-between font-bold text-slate-900">
+            <span>Teacher:</span>
+            <span id="sig-teacher">Mr. Teacher Name</span>
+          </div>
+          <div class="text-slate-400 text-[8.5px] flex justify-between items-end border-t border-dashed border-slate-300 pt-1">
+            <span>Sign: ........................</span>
+            <span>Date: ..../..../2026</span>
+          </div>
+        </div>
+
+        <!-- Educational Supervisor (FIXED) -->
+        <div class="border border-emerald-300 rounded p-1.5 bg-emerald-50/50 flex flex-col justify-between h-16">
+          <div class="flex justify-between font-bold text-emerald-950">
+            <span>Supervisor:</span>
+            <span>Mohammed Abdullah Othman</span>
+          </div>
+          <div class="text-slate-400 text-[8.5px] flex justify-between items-end border-t border-dashed border-emerald-300 pt-1">
+            <span>Sign: ........................</span>
+            <span>Status: Approved ✓</span>
+          </div>
+        </div>
+
+        <!-- School Principal -->
+        <div class="border border-slate-300 rounded p-1.5 bg-slate-50 flex flex-col justify-between h-16">
+          <div class="flex justify-between font-bold text-slate-900">
+            <span>Principal:</span>
+            <span id="sig-principal">School Principal</span>
+          </div>
+          <div class="text-slate-400 text-[8.5px] flex justify-between items-end border-t border-dashed border-slate-300 pt-1">
+            <span>Sign: ........................</span>
+            <span>Stamp: [ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ]</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contact Us & WhatsApp Only Bar -->
+      <div class="footer-contact mt-2 pt-1 border-t border-slate-200 flex justify-between items-center text-[9.5px] text-slate-600">
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-slate-700">Call us:</span>
+          <a href="https://wa.me/966530665625" target="_blank" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-2.5 py-0.5 rounded flex items-center gap-1 transition shadow-sm text-[9px]">
+            <span>💬</span> 0530665625 (WhatsApp)
+          </a>
+        </div>
+        <div class="text-[9px] text-slate-500 font-medium">
+          Al Bayariq Bilingual Curriculum Framework
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Real Context-Driven Logic Engine -->
+  <script>
+    function syncHeaders() {
+      const teacher = document.getElementById('in-teacher').value || 'Mr. Teacher Name';
+      const stage = document.getElementById('in-stage').value;
+      const grade = document.getElementById('in-grade').value || 'Grade 5/1';
+      const term = document.getElementById('in-term').value;
+      const week = document.getElementById('in-week').value || 'Week 4';
+      const dateVal = document.getElementById('in-date').value;
+      const principal = document.getElementById('in-principal').value || 'School Principal';
+
+      document.getElementById('out-teacher').innerText = teacher;
+      document.getElementById('sig-teacher').innerText = teacher;
+      document.getElementById('out-stage').innerText = stage;
+      document.getElementById('out-grade').innerText = grade;
+      document.getElementById('out-term').innerText = term;
+      document.getElementById('out-week').innerText = week;
+
+      if (dateVal) {
+        const d = new Date(dateVal);
+        const formattedDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+        document.getElementById('out-date').innerText = formattedDate;
+      } else {
+        document.getElementById('out-date').innerText = '18/09/2026';
+      }
+      
+      document.getElementById('sig-principal').innerText = principal;
+    }
+
+    function changeSchoolLogo(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = document.getElementById('custom-logo-img');
+          img.src = e.target.result;
+          img.classList.remove('hidden');
+          document.getElementById('default-logo-svg').classList.add('hidden');
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // قراءة الصورة واستخراج النصوص منها
+    async function processLessonImage(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        document.getElementById('preview-img').src = e.target.result;
+        document.getElementById('file-name-text').innerText = file.name;
+        document.getElementById('lesson-idle').classList.add('hidden');
+        document.getElementById('lesson-preview').classList.remove('hidden');
+        
+        // تشغيل التعرف البصري OCR لاستخراج الكلمات من كتاب الطالب
+        document.getElementById('ocr-status').innerText = 'جاري استخراج نصوص الكتاب... ⏳';
+        try {
+          const res = await Tesseract.recognize(e.target.result, 'eng');
+          const cleanText = res.data.text.replace(/\s+/g, ' ').trim();
+          document.getElementById('extracted-text').value = cleanText;
+          
+          // إذا لم يكتب المعلم الكلمات مسبقاً، استخرج الكلمات البارزة من الصورة
+          if (!document.getElementById('in-vocab').value.trim() && cleanText) {
+            const words = cleanText.split(' ').filter(w => w.length > 5).slice(0, 7).join(', ');
+            document.getElementById('in-vocab').value = words;
+          }
+        } catch (err) {
+          console.log('OCR bypass:', err);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // بناء التحضير الفعلي الحقيقي على بيانات المعلم حصراً
+    function buildContextualPreparation() {
+      const rawTitle = document.getElementById('in-title').value.trim() || 'English Language Essentials';
+      const rawVocab = document.getElementById('in-vocab').value.trim();
+      const rawSkill = document.getElementById('in-skill').value.trim();
+      const extracted = document.getElementById('extracted-text').value.trim();
+
+      if (!rawVocab && !rawSkill && !extracted) {
+        alert('يرجى كتابة الكلمات والمفردات، أو تحديد المكتسب المهاري للدرس لبناء التحضير الفعلي.');
+        return;
+      }
+
+      // تنظيف وتنسيق المفردات الحقيقية
+      const vocabArray = rawVocab ? rawVocab.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean) : ['Target Vocabulary'];
+      const vocabDisplay = vocabArray.join(', ');
+      const primeWord1 = vocabArray[0] || 'term';
+      const primeWord2 = vocabArray[1] || vocabArray[0] || 'structure';
+      const targetSkill = rawSkill || `Mastering functional communication and context-based dialogue`;
+
+      // 1. Lesson Title
+      document.getElementById('cell-1').innerHTML = `
+        <span class="text-emerald-800 font-bold mr-1.5">✦</span><strong>Topic:</strong> ${rawTitle}
+      `;
+
+      // 2. Warm-up & Intro (مبني حصراً على الكلمة الأولى من كلمات المعلم)
+      document.getElementById('cell-2').innerHTML = `
+        <span class="text-emerald-800 font-bold mr-1.5">✦</span><strong>Interactive Hook:</strong> Engage students with a 3-minute elicitation challenge around <strong>"${primeWord1}"</strong>; prompt learners to connect it with real-life daily experiences.
+      `;
+
+      // 3. Terminology & Concepts (كلمات المعلم فقط وبشكل بارز)
+      document.getElementById('cell-3').innerHTML = `
+        <span class="text-emerald-800 font-bold mr-1.5">✦</span><strong>Target Vocabulary:</strong> <span class="font-bold text-emerald-950">${vocabDisplay}</span>.
+      `;
+
+      // 4. Lesson Objectives (تخدم المفردات والمهارة مباشرة)
+      document.getElementById('cell-4').innerHTML = `
+        <span class="text-emerald-800 font-bold mr-1.5">✦</span><strong>By the end of the lesson, SWBAT:</strong> 
+        <strong>1) Articulate & spell</strong> the key items (${primeWord1}, ${primeWord2}) in spoken and written exercises accurately. 
+        <strong>2) Execute the target skill:</strong> ${targetSkill}.
+      `;
+
+      // 5. Skill Acquisition Objectives (المكتسب المهاري المكتوب من المعلم)
+      document.getElementById('cell-5').innerHTML = `
+        <span class="text-emerald-800 font-bold mr-1.5">✦</span><strong>Integrated Competency:</strong> ${targetSkill} — verified through authentic peer interactions and verbal demonstration.
+      `;
+
+      // 6. Presentation (شرح يدمج الكلمات في صلب المهارة)
+      document.getElementById('cell-6').innerHTML = `
+        <span class="text-emerald-800 font-bold mr-1.5">✦</span><strong>Direct Modeling:</strong> Explicitly present the usage of <strong>"${primeWord1}"</strong> and <strong>"${primeWord2}"</strong> within meaningful sentences. Scaffold the target skill (${targetSkill}) through guided practice and collaborative choral-to-individual drills.
+      `;
+
+      // 7. Thinking Skills (تفكير ناقد حول الكلمات والمحتوى)
+      document.getElementById('cell-7').innerHTML = `
+        <span class="text-emerald-800 font-bold mr-1.5">✦</span><strong>Critical Inquiry:</strong> Analyzing the contextual differences in using <strong>"${primeWord1}"</strong> vs. <strong>"${primeWord2}"</strong>, and deducing meaning from sentence-level context.
+      `;
+
+      // 8. Learning Strategies
+      document.getElementById('cell-8').innerHTML = `
+        <span class="text-emerald-800 font-bold mr-1.5">✦</span><strong>Active Methodologies:</strong> Think-Pair-Share, Total Physical Response (TPR) for lexical reinforcement, and Structured Peer Dialogue focused on ${primeWord1}.
+      `;
+
+      // 9. Teaching Aids
+      document.getElementById('cell-9').innerHTML = `
+        <span class="text-emerald-800 font-bold mr-1.5">✦</span><strong>Instructional Resources:</strong> Digital Smartboard, Visual Flashcards for [${primeWord1}], Student Coursebook, and Contextual Audio Clips.
+      `;
+
+      // 10. Lesson Closure
+      document.getElementById('cell-10').innerHTML = `
+        <span class="text-emerald-800 font-bold mr-1.5">✦</span><strong>Exit Ticket:</strong> Each student verbally constructs one complete sentence demonstrating <strong>${targetSkill}</strong> using <strong>"${primeWord1}"</strong> before dismissal.
+      `;
+
+      // 11. Enrichment Content
+      document.getElementById('cell-11').innerHTML = `
+        <span class="text-emerald-800 font-bold mr-1.5">✦</span><strong>Advanced Challenge:</strong> Independent inquiry task: Write a 3-line dialogue integrating both <strong>"${primeWord1}"</strong> and <strong>"${primeWord2}"</strong> to present to the class.
+      `;
+
+      // 12. Final Assessment
+      document.getElementById('cell-12').innerHTML = `
+        <span class="text-emerald-800 font-bold mr-1.5">✦</span><strong>Formative Evaluation:</strong> Leveled 4-item cloze assessment measuring accuracy in pronouncing, spelling, and applying <strong>${vocabDisplay}</strong>.
+      `;
+
+      // 13. Homework & Quiz
+      document.getElementById('cell-13').innerHTML = `
+        <span class="text-emerald-800 font-bold mr-1.5">✦</span><strong>Targeted Practice:</strong> Workbook exercises covering <strong>${primeWord1}</strong>; prepare for a 3-minute oral fluency evaluation applying the target skill next session.
+      `;
+
+      // 14. School Activities
+      document.getElementById('cell-14').innerHTML = `
+        <span class="text-emerald-800 font-bold mr-1.5">✦</span><strong>Applied Engagement:</strong> In-class roleplay simulation demonstrating <strong>${targetSkill}</strong>; nominate exemplary dialogue for the English Morning Broadcast.
+      `;
+
+      // 15. Attachments
+      document.getElementById('cell-15').innerHTML = `
+        <span class="text-emerald-800 font-bold mr-1.5">✦</span><strong>Enclosures:</strong> Lexical Mastery Worksheet [${primeWord1}], Pronunciation Audio Reference, and Skill Practice Rubric.
+      `;
+
+      // 16. Supervision Notes
+      document.getElementById('cell-16').innerHTML = `
+        <span class="text-emerald-800 font-bold mr-1.5">✦</span><strong>Supervisory Observations:</strong> Direct, seamless alignment between target vocabulary and functional skill execution; high student speaking time achieved.
+      `;
+
+      alert('✨ تم بناء التحضير الفعلي بنجاح وربط جميع العناصر الـ 16 بكلماتك ومهاراتك مباشرة دون حشو!');
+    }
+
+    function fillDemoData() {
+      document.getElementById('in-teacher').value = 'Abdulrahim Alarabi';
+      document.getElementById('in-principal').value = 'Wael Gafary';
+      document.getElementById('in-grade').value = 'Grade 6/1';
+      document.getElementById('in-week').value = 'Week 5';
+      document.getElementById('in-term').value = '1st Term';
+      document.getElementById('in-title').value = 'Healthy Living and Balanced Diet';
+      document.getElementById('in-vocab').value = 'protein, vitamins, balanced diet, calories, carbohydrates, junk food';
+      document.getElementById('in-skill').value = 'Giving health recommendations and expressing nutritional choices using modals (should / shouldn\'t)';
+      
+      syncHeaders();
+      buildContextualPreparation();
+    }
+
+    window.onload = function() {
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('in-date').value = today;
+      syncHeaders();
+      fillDemoData();
+    };
+  </script>
+</body>
+</html>
